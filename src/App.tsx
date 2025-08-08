@@ -1,27 +1,27 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import Login from "./routes/Login.jsx";
+import ProviderHome from "./routes/ProviderHome.jsx";
+import ScanPage from "./routes/ScanPage.jsx";
+import ToiletDetailProvider from "./routes/ToiletDetailProvider.jsx";
+import AdminDashboard from "./routes/AdminDashboard.jsx";
+import AdminToiletDetail from "./routes/AdminToiletDetail.jsx";
+import ReportsPage from "./routes/ReportsPage.jsx";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
-
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <BrowserRouter>
+    <Routes>
+      <Route path="/" element={<Login />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/provider" element={<ProviderHome />} />
+      <Route path="/provider/scan" element={<ScanPage />} />
+      <Route path="/provider/scan/:toiletId" element={<ToiletDetailProvider />} />
+      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/toilet/:toiletId" element={<AdminToiletDetail />} />
+      <Route path="/admin/reports" element={<ReportsPage />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </BrowserRouter>
 );
 
 export default App;

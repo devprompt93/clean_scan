@@ -1,0 +1,41 @@
+[
+  {
+    "id": "cleaning_001",
+    "toiletId": "toilet_002",
+    "providerId": "provider_002",
+    "timestamp": "2024-01-11T09:15:00Z",
+    "gps": [-33.924, 18.424],
+    "beforePhotoUrl": "/mockData/photos/before_002.jpg",
+    "afterPhotoUrl": "/mockData/photos/after_002.jpg",
+    "status": "completed",
+    "aiScore": 8.5,
+    "flagged": false,
+    "notes": "Standard cleaning completed successfully"
+  },
+  {
+    "id": "cleaning_002",
+    "toiletId": "toilet_004",
+    "providerId": "provider_003", 
+    "timestamp": "2024-01-11T11:20:00Z",
+    "gps": [-26.107, 28.056],
+    "beforePhotoUrl": "/mockData/photos/before_004.jpg",
+    "afterPhotoUrl": "/mockData/photos/after_004.jpg",
+    "status": "in_progress",
+    "aiScore": null,
+    "flagged": false,
+    "notes": "Deep cleaning in progress"
+  },
+  {
+    "id": "cleaning_003",
+    "toiletId": "toilet_003",
+    "providerId": "provider_001",
+    "timestamp": "2024-01-08T16:45:00Z",
+    "gps": [-33.932, 18.864],
+    "beforePhotoUrl": "/mockData/photos/before_003.jpg",
+    "afterPhotoUrl": "/mockData/photos/after_003.jpg",
+    "status": "flagged",
+    "aiScore": 3.2,
+    "flagged": true,
+    "notes": "Quality issue detected - requires reinspection"
+  }
+]
