@@ -1,0 +1,45 @@
+
+[
+  {
+    "id": "cleaning_001",
+    "toiletId": "toilet_001",
+    "providerId": "provider_001",
+    "timestamp": "2024-01-10T14:30:00Z",
+    "duration": 25,
+    "gpsCoords": [-33.915, 18.669],
+    "beforePhoto": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ...",
+    "afterPhoto": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ...",
+    "status": "Completed",
+    "aiQualityScore": 92,
+    "aiFlags": [],
+    "notes": "Standard cleaning completed successfully"
+  },
+  {
+    "id": "cleaning_002", 
+    "toiletId": "toilet_002",
+    "providerId": "provider_002",
+    "timestamp": "2024-01-11T09:15:00Z",
+    "duration": 18,
+    "gpsCoords": [-33.924, 18.424],
+    "beforePhoto": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ...",
+    "afterPhoto": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ...",
+    "status": "Completed",
+    "aiQualityScore": 88,
+    "aiFlags": ["minor_spots"],
+    "notes": "Quick touch-up required on mirror area"
+  },
+  {
+    "id": "cleaning_003",
+    "toiletId": "toilet_003",
+    "providerId": "provider_001", 
+    "timestamp": "2024-01-08T16:45:00Z",
+    "duration": 35,
+    "gpsCoords": [-33.932, 18.864],
+    "beforePhoto": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ...",
+    "afterPhoto": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ...",
+    "status": "Flagged",
+    "aiQualityScore": 65,
+    "aiFlags": ["incomplete_cleaning", "missed_areas"],
+    "notes": "Requires re-cleaning - several areas missed"
+  }
+]

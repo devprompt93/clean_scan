@@ -1,0 +1,49 @@
+
+[
+  {
+    "id": "provider_001",
+    "username": "provider1",
+    "password": "password123",
+    "role": "provider",
+    "name": "John Cleaning Services",
+    "email": "john@cleaningservices.co.za",
+    "phone": "+27 11 123 4567",
+    "assignedToilets": ["toilet_001", "toilet_003"],
+    "totalCleaned": 45,
+    "rating": 4.8
+  },
+  {
+    "id": "provider_002", 
+    "username": "provider2",
+    "password": "password123",
+    "role": "provider",
+    "name": "Clean Solutions SA",
+    "email": "admin@cleansolutions.co.za",
+    "phone": "+27 21 987 6543",
+    "assignedToilets": ["toilet_002", "toilet_005"],
+    "totalCleaned": 32,
+    "rating": 4.6
+  },
+  {
+    "id": "provider_003",
+    "username": "provider3", 
+    "password": "password123",
+    "role": "provider",
+    "name": "Elite Hygiene Co",
+    "email": "contact@elitehygiene.co.za",
+    "phone": "+27 31 555 0123",
+    "assignedToilets": ["toilet_004"],
+    "totalCleaned": 28,
+    "rating": 4.9
+  },
+  {
+    "id": "admin_001",
+    "username": "admin",
+    "password": "admin123",
+    "role": "admin",
+    "name": "CityClean Administrator",
+    "email": "admin@cityclean.gov.za",
+    "phone": "+27 11 000 0000",
+    "permissions": ["view_all", "manage_providers", "generate_reports"]
+  }
+]

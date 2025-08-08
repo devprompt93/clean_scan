@@ -1,0 +1,58 @@
+
+[
+  {
+    "id": "toilet_001",
+    "name": "Delft - Station Road - Block A",
+    "area": "Delft",
+    "gpsCoords": [-33.915, 18.669],
+    "trackerInstalled": true,
+    "status": "Pending",
+    "lastCleaned": "2024-01-10T14:30:00Z",
+    "provider": "provider_001",
+    "description": "Main station building - High traffic area"
+  },
+  {
+    "id": "toilet_002", 
+    "name": "Cape Town CBD - Long Street Mall",
+    "area": "Cape Town CBD",
+    "gpsCoords": [-33.924, 18.424],
+    "trackerInstalled": true,
+    "status": "Completed",
+    "lastCleaned": "2024-01-11T09:15:00Z",
+    "provider": "provider_002",
+    "description": "Shopping mall - Medium traffic"
+  },
+  {
+    "id": "toilet_003",
+    "name": "Stellenbosch - University Campus East",
+    "area": "Stellenbosch",
+    "gpsCoords": [-33.932, 18.864],
+    "trackerInstalled": false,
+    "status": "Flagged",
+    "lastCleaned": "2024-01-08T16:45:00Z",
+    "provider": "provider_001",
+    "description": "Campus facility - Student area"
+  },
+  {
+    "id": "toilet_004",
+    "name": "Johannesburg - Sandton City",
+    "area": "Johannesburg",
+    "gpsCoords": [-26.107, 28.056],
+    "trackerInstalled": true,
+    "status": "In Progress",
+    "lastCleaned": "2024-01-11T11:20:00Z",
+    "provider": "provider_003",
+    "description": "Major shopping center - Very high traffic"
+  },
+  {
+    "id": "toilet_005",
+    "name": "Durban - Beachfront Promenade",
+    "area": "Durban",
+    "gpsCoords": [-29.857, 31.035],
+    "trackerInstalled": true,
+    "status": "Pending",
+    "lastCleaned": "2024-01-09T07:00:00Z",
+    "provider": "provider_002",
+    "description": "Tourist area - Seasonal high traffic"
+  }
+]
