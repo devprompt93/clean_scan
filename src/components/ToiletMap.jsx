@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { Loader } from '@googlemaps/js-api-loader';
 
 const ToiletMap = ({ toilets, cleanings, searchResults }) => {
   const mapContainer = useRef();
   const map = useRef();
   const markersRef = useRef([]);
-  const [mapboxToken, setMapboxToken] = useState('');
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
 
   // Filter toilets based on search results
   const displayToilets = searchResults?.length > 0 ? 
@@ -14,38 +13,44 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
     toilets;
 
   useEffect(() => {
-    if (!mapContainer.current) return;
+    if (!mapContainer.current || !googleMapsApiKey) return;
 
-    // Initialize map
-    if (!mapboxToken) {
-      return;
-    }
-
-    mapboxgl.accessToken = mapboxToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-33.924, 18.424], // Cape Town center
-      zoom: 10
+    const loader = new Loader({
+      apiKey: googleMapsApiKey,
+      version: 'weekly',
+      libraries: ['places']
     });
 
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    loader.load().then(() => {
+      map.current = new google.maps.Map(mapContainer.current, {
+        center: { lat: -33.924, lng: 18.424 }, // Cape Town center
+        zoom: 10,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        styles: [
+          {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }]
+          }
+        ]
+      });
+    }).catch(error => {
+      console.error('Error loading Google Maps:', error);
+    });
 
     return () => {
-      if (map.current) {
-        map.current.remove();
-      }
+      // Google Maps cleanup is handled automatically
     };
-  }, [mapboxToken]);
+  }, [googleMapsApiKey]);
 
   useEffect(() => {
-    if (!map.current || !mapboxToken) return;
+    if (!map.current || !googleMapsApiKey) return;
 
     // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
+
+    const bounds = new google.maps.LatLngBounds();
 
     // Add markers for each toilet
     displayToilets.forEach(toilet => {
@@ -62,72 +67,107 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
         }
       }
 
-      // Create marker element
-      const markerElement = document.createElement('div');
-      markerElement.className = 'toilet-marker';
-      markerElement.style.cssText = `
-        width: 20px;
-        height: 20px;
-        background-color: ${pinColor};
-        border: 2px solid white;
-        border-radius: 50%;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      `;
+      // Create custom marker icon with GPS tracker animation
+      const markerIcon = {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: pinColor,
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 2,
+        scale: 8,
+        anchor: new google.maps.Point(0, 0)
+      };
 
-      // Create popup
-      const popup = new mapboxgl.Popup({
-        offset: 25,
-        closeButton: true,
-        closeOnClick: false
-      }).setHTML(`
-        <div style="padding: 8px; min-width: 200px;">
-          <h3 style="margin: 0 0 8px 0; font-weight: 600; color: #1f2937;">${toilet.name}</h3>
-          <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Area:</strong> ${toilet.area}</p>
-          <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Status:</strong> ${toilet.status}</p>
-          <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Provider:</strong> ${toilet.provider}</p>
-          <p style="margin: 0; color: #6b7280; font-size: 14px;"><strong>Last Cleaned:</strong> ${new Date(toilet.lastCleaned).toLocaleDateString()}</p>
-        </div>
-      `);
+      // Create pulsing GPS tracker effect
+      const pulseIcon = {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: pinColor,
+        fillOpacity: 0.3,
+        strokeColor: pinColor,
+        strokeWeight: 1,
+        scale: 15,
+        anchor: new google.maps.Point(0, 0)
+      };
 
-      // Create and add marker
-      const marker = new mapboxgl.Marker(markerElement)
-        .setLngLat([toilet.gpsCoords[1], toilet.gpsCoords[0]])
-        .setPopup(popup)
-        .addTo(map.current);
+      // Create pulsing marker for GPS tracker effect
+      const pulseMarker = new google.maps.Marker({
+        position: { lat: toilet.gpsCoords[0], lng: toilet.gpsCoords[1] },
+        map: map.current,
+        icon: pulseIcon,
+        animation: google.maps.Animation.BOUNCE,
+        zIndex: 1
+      });
 
-      markersRef.current.push(marker);
+      // Stop bouncing after 2 seconds to create pulse effect
+      setTimeout(() => {
+        pulseMarker.setAnimation(null);
+      }, 2000);
+
+      // Create main marker
+      const marker = new google.maps.Marker({
+        position: { lat: toilet.gpsCoords[0], lng: toilet.gpsCoords[1] },
+        map: map.current,
+        icon: markerIcon,
+        title: toilet.name,
+        zIndex: 2
+      });
+
+      // Create info window
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div style="padding: 8px; min-width: 200px;">
+            <h3 style="margin: 0 0 8px 0; font-weight: 600; color: #1f2937;">${toilet.name}</h3>
+            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Area:</strong> ${toilet.area}</p>
+            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Status:</strong> ${toilet.status}</p>
+            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Provider:</strong> ${toilet.provider}</p>
+            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>GPS:</strong> ${toilet.gpsCoords[0].toFixed(6)}, ${toilet.gpsCoords[1].toFixed(6)}</p>
+            <p style="margin: 0; color: #6b7280; font-size: 14px;"><strong>Last Cleaned:</strong> ${new Date(toilet.lastCleaned).toLocaleDateString()}</p>
+          </div>
+        `
+      });
+
+      // Add click listener to marker
+      marker.addListener('click', () => {
+        infoWindow.open(map.current, marker);
+      });
+
+      markersRef.current.push(marker, pulseMarker);
+      bounds.extend({ lat: toilet.gpsCoords[0], lng: toilet.gpsCoords[1] });
     });
 
     // Fit map to show all markers
     if (displayToilets.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      displayToilets.forEach(toilet => {
-        bounds.extend([toilet.gpsCoords[1], toilet.gpsCoords[0]]);
+      map.current.fitBounds(bounds);
+      
+      // Ensure minimum zoom level
+      const listener = google.maps.event.addListener(map.current, 'bounds_changed', () => {
+        if (map.current.getZoom() > 15) {
+          map.current.setZoom(15);
+        }
+        google.maps.event.removeListener(listener);
       });
-      map.current.fitBounds(bounds, { padding: 50 });
     }
-  }, [displayToilets, cleanings, mapboxToken]);
+  }, [displayToilets, cleanings, googleMapsApiKey]);
 
-  if (!mapboxToken) {
+  if (!googleMapsApiKey) {
     return (
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">Toilet Locations Map</h2>
-          <p className="card-subtitle">Enter your Mapbox token to view the map</p>
+          <p className="card-subtitle">Enter your Google Maps API key to view the map with GPS tracking</p>
         </div>
         <div style={{ padding: 'var(--spacing-md)' }}>
           <div className="form-group">
-            <label className="label">Mapbox Public Token</label>
+            <label className="label">Google Maps API Key</label>
             <input
               type="text"
               className="input"
-              placeholder="pk.eyJ1IjoieW91cnVzZXJuYW1lIiwiYSI6ImNsZjF..."
-              value={mapboxToken}
-              onChange={(e) => setMapboxToken(e.target.value)}
+              placeholder="AIzaSyC..."
+              value={googleMapsApiKey}
+              onChange={(e) => setGoogleMapsApiKey(e.target.value)}
             />
             <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginTop: 'var(--spacing-xs)' }}>
-              Get your token from <a href="https://mapbox.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-blue)' }}>mapbox.com</a>
+              Get your API key from <a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-blue)' }}>Google Cloud Console</a>
             </p>
           </div>
         </div>
@@ -139,7 +179,7 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
     <div className="card">
       <div className="card-header">
         <h2 className="card-title">Toilet Locations Map</h2>
-        <p className="card-subtitle">Real-time status of all toilet locations</p>
+        <p className="card-subtitle">Real-time GPS tracking and status of all toilet locations</p>
       </div>
       
       {/* Map Legend */}
