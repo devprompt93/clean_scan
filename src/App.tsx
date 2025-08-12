@@ -8,6 +8,9 @@ import AdminDashboard from "./routes/AdminDashboard.jsx";
 import AdminToiletDetail from "./routes/AdminToiletDetail.jsx";
 import ReportsPage from "./routes/ReportsPage.jsx";
 import NotFound from "./pages/NotFound";
+import AdminProviders from "./routes/AdminProviders.jsx";
+import AdminDataManagement from "./routes/AdminDataManagement.jsx";
+import Register from "./routes/Register.jsx";
 
 // Simple error boundary for Router issues
 class ErrorBoundary extends React.Component<
@@ -75,12 +78,15 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/provider" element={<ProviderHome />} />
         <Route path="/provider/scan" element={<ScanPage />} />
         <Route path="/provider/scan/:toiletId" element={<ToiletDetailProvider />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/toilet/:toiletId" element={<AdminToiletDetail />} />
         <Route path="/admin/reports" element={<ReportsPage />} />
+        <Route path="/admin/providers" element={<AdminProviders />} />
+        <Route path="/admin/data" element={<AdminDataManagement />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

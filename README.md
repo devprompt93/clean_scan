@@ -71,3 +71,28 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Environment Setup
+
+Create a `.env` file in the project root (same folder as `vite.config.ts`) and add your Google Maps API key:
+
+```
+VITE_GOOGLE_MAPS_API_KEY=your_key_here
+```
+
+If not provided, the Admin map will display an input to paste a key at runtime.
+
+## Offline submissions
+
+Cleaning submissions are attempted against `http://localhost:4000/cleanings`. If the request fails or times out, the payload is stored in `localStorage` under `pending_cleanings` and a success message indicates it will sync later.
+
+## Provider assignments
+
+Admins can manage assignments at `/admin/providers`. Changes are saved to `localStorage` (`providerAssignments`) and override mock defaults during the session.
+
+## Registration and Admin Approval
+
+- Providers can register at `/register` with First name, Last name, Email, Password, and City.
+- Registrations are stored locally in `pending_registrations` until an admin approves them in `/admin/data`.
+- Admin Data Management shows a Pending section to Approve or Reject. Approving creates a provider with a city-based Provider ID and carries over email/password for login.
+- Login accepts email+password (preferred) or existing mock usernames.

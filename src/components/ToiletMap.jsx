@@ -5,7 +5,7 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
   const mapContainer = useRef();
   const map = useRef();
   const markersRef = useRef([]);
-  const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
 
   // Filter toilets based on search results
   const displayToilets = searchResults?.length > 0 ? 

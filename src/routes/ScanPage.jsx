@@ -17,10 +17,9 @@ const ScanPage = () => {
     setUser(currentUser);
     
     // Load toilets for QR code validation
-    fetch('/mockData/toilets.json')
-      .then(res => res.json())
-      .then(data => setToilets(data))
-      .catch(error => console.error('Error loading toilets:', error));
+    import('../services/api').then(({ getToilets }) => {
+      getToilets().then(setToilets).catch(e => console.error('Error loading toilets:', e))
+    })
   }, [navigate]);
 
   const handleToiletScanned = (toiletId) => {

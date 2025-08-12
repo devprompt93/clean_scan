@@ -27,25 +27,21 @@ const AdminDashboard = () => {
     }
     setUser(currentUser);
     
-    // Load all data
-    Promise.all([
-      fetch('/mockData/toilets.json').then(res => res.json()),
-      fetch('/mockData/cleanings.json').then(res => res.json()),
-      fetch('/mockData/users.json').then(res => res.json())
-    ]).then(([toiletsData, cleaningsData, usersData]) => {
-      setToilets(toiletsData);
-      setCleanings(cleaningsData);
-      const providersData = usersData.filter(u => u.role === 'provider');
-      setProviders(providersData);
-      
-      // Calculate initial stats
-      calculateStats(toiletsData, cleaningsData, providersData, []);
-      
-      setLoading(false);
-    }).catch(error => {
-      console.error('Error loading data:', error);
-      setLoading(false);
-    });
+    // Load all data via service (users merged with local additions)
+    import('../services/api').then(({ getToilets, getCleanings, getUsersWithLocal }) => {
+      Promise.all([getToilets(), getCleanings(), getUsersWithLocal()])
+        .then(([toiletsData, cleaningsData, usersData]) => {
+          setToilets(toiletsData)
+          setCleanings(cleaningsData)
+          const providersData = usersData.filter(u => u.role === 'provider')
+          setProviders(providersData)
+          calculateStats(toiletsData, cleaningsData, providersData, [])
+        })
+        .catch(error => {
+          console.error('Error loading data:', error)
+        })
+        .finally(() => setLoading(false))
+    })
   }, [navigate]);
 
   // Calculate stats based on current filter
@@ -85,17 +81,17 @@ const AdminDashboard = () => {
 
     const searchLower = searchTerm.toLowerCase();
     
-    // Filter by area/location
+    // Filter by area/location or toilet name
     const filteredToilets = toilets.filter(toilet => 
       toilet.area.toLowerCase().includes(searchLower) ||
       toilet.name.toLowerCase().includes(searchLower)
     );
 
-    // Filter by provider
-    const filteredProviders = providers.filter(provider => 
-      provider.name.toLowerCase().includes(searchLower) ||
-      provider.id.toLowerCase().includes(searchLower)
-    );
+    // Filter by provider (name, id, email, providerCode)
+    const filteredProviders = providers.filter(provider => {
+      const hay = `${provider.name || ''} ${provider.id || ''} ${provider.email || ''} ${provider.providerCode || ''}`.toLowerCase()
+      return hay.includes(searchLower)
+    });
 
     // Get toilets assigned to filtered providers
     const providerToilets = toilets.filter(toilet => 
@@ -122,6 +118,23 @@ const AdminDashboard = () => {
 
     calculateStats(toilets, cleanings, providers, allFilteredToilets.map(t => t.id));
   }, [searchTerm, toilets, cleanings, providers]);
+
+  // Refresh providers count on local storage changes (e.g., admin adds/deletes users)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'admin_dm_users') {
+        import('../services/api').then(({ getUsersWithLocal }) => {
+          getUsersWithLocal().then(usersData => {
+            const providersData = usersData.filter(u => u.role === 'provider')
+            setProviders(providersData)
+            calculateStats(toilets, cleanings, providersData, searchTerm ? (filteredResults.toilets.map(t => t.id)) : [])
+          })
+        })
+      }
+    }
+    window.addEventListener('storage', handler)
+    return () => window.removeEventListener('storage', handler)
+  }, [toilets, cleanings, searchTerm, filteredResults.toilets])
 
   if (loading) {
     return (
@@ -202,9 +215,15 @@ const AdminDashboard = () => {
             </button>
             <button 
               className="btn btn-secondary"
-              onClick={() => alert('Provider management coming soon!')}
+              onClick={() => navigate('/admin/providers')}
             >
               👥 Manage Providers
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={() => navigate('/admin/data')}
+            >
+              🗂️ Data Management
             </button>
             <button 
               className="btn btn-secondary"

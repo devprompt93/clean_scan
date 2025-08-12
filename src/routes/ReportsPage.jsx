@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import * as XLSX from 'xlsx';
+// PDF generation uses dynamic import of 'jspdf' to reduce bundle size
 
 const ReportsPage = () => {
   const [user, setUser] = useState(null);
@@ -18,18 +19,13 @@ const ReportsPage = () => {
     }
     setUser(currentUser);
     
-    // Load data for reports
-    Promise.all([
-      fetch('/mockData/toilets.json').then(res => res.json()),
-      fetch('/mockData/cleanings.json').then(res => res.json()),
-      fetch('/mockData/users.json').then(res => res.json())
-    ]).then(([toilets, cleanings, users]) => {
-      setReportData({ toilets, cleanings, users });
-      setLoading(false);
-    }).catch(error => {
-      console.error('Error loading data:', error);
-      setLoading(false);
-    });
+    // Load data for reports via service
+    import('../services/api').then(({ getToilets, getCleanings, getUsers }) => {
+      Promise.all([getToilets(), getCleanings(), getUsers()])
+        .then(([toilets, cleanings, users]) => setReportData({ toilets, cleanings, users }))
+        .catch(error => console.error('Error loading data:', error))
+        .finally(() => setLoading(false))
+    })
   }, [navigate]);
 
   const generateExcelReport = async () => {
@@ -104,11 +100,25 @@ const ReportsPage = () => {
   const generatePDFReport = async () => {
     setGenerating(true);
     try {
-      // Mock PDF generation - in real app would use jsPDF
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert('PDF generation would be implemented here using jsPDF library');
-      
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF()
+      doc.setFontSize(16)
+      doc.text('CityCleanTracker Report', 14, 16)
+      doc.setFontSize(10)
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 24)
+
+      const { toilets = [], cleanings = [], users = [] } = reportData
+      const lines = [
+        `Total Toilets: ${toilets.length}`,
+        `Total Cleanings: ${cleanings.length}`,
+        `Active Providers: ${users.filter(u => u.role === 'provider').length}`,
+        `Completed Cleanings: ${cleanings.filter(c => c.status === 'completed').length}`,
+        `Flagged Cleanings: ${cleanings.filter(c => c.flagged).length}`,
+      ]
+      let y = 34
+      lines.forEach(line => { doc.text(line, 14, y); y += 6 })
+
+      doc.save(`CityCleanTracker_Report_${new Date().toISOString().split('T')[0]}.pdf`)
     } catch (error) {
       console.error('Error generating PDF report:', error);
       alert('Failed to generate PDF report');

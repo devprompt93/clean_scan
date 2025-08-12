@@ -17,20 +17,19 @@ const ProviderHome = () => {
     }
     setUser(currentUser);
     
-    // Load assigned toilets
-    fetch('/mockData/toilets.json')
-      .then(res => res.json())
-      .then(data => {
-        const assignedToilets = data.filter(toilet => 
-          currentUser.assignedToilets.includes(toilet.id)
-        );
-        setToilets(assignedToilets);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error loading toilets:', error);
-        setLoading(false);
-      });
+    // Load assigned toilets (respect local provider assignments override)
+    import('../services/api').then(async ({ getToilets, getProviderAssignments }) => {
+      try {
+        const [data, assignments] = await Promise.all([getToilets(), getProviderAssignments()])
+        const ids = assignments[currentUser.id] || currentUser.assignedToilets || []
+        const assignedToilets = data.filter(toilet => ids.includes(toilet.id))
+        setToilets(assignedToilets)
+      } catch (error) {
+        console.error('Error loading toilets:', error)
+      } finally {
+        setLoading(false)
+      }
+    })
   }, [navigate]);
 
   const handleScanClick = () => {

@@ -34,12 +34,27 @@ const TopNav = ({ user }) => {
               {user.role === 'admin' && (
                 <>
                   <li><Link to="/admin" className="nav-link">Dashboard</Link></li>
+                  <li><Link to="/admin/providers" className="nav-link">Providers</Link></li>
+                  <li><Link to="/admin/data" className="nav-link">Data</Link></li>
                   <li><Link to="/admin/reports" className="nav-link">Reports</Link></li>
                 </>
               )}
             </ul>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+              {user.role === 'admin' && (() => {
+                try {
+                  const pending = JSON.parse(localStorage.getItem('pending_registrations') || '[]')
+                  if (pending.length > 0) {
+                    return (
+                      <Link to="/admin/data" className="badge badge-warning" title="Pending registrations">
+                        Pending: {pending.length}
+                      </Link>
+                    )
+                  }
+                } catch {}
+                return null
+              })()}
               <div className="text-sm">
                 <div className="font-medium">{user.name}</div>
                 <div className="text-gray">{user.role}</div>

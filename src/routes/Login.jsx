@@ -12,9 +12,9 @@ const Login = () => {
     
     // Mock authentication
     try {
-      const response = await fetch('/mockData/users.json');
-      const users = await response.json();
-      const user = users.find(u => u.username === credentials.username && u.password === credentials.password);
+      const { getUsersWithLocal } = await import('../services/api');
+      const users = await getUsersWithLocal();
+      const user = users.find(u => (u.email?.toLowerCase() === credentials.username?.toLowerCase() || u.username === credentials.username) && u.password === credentials.password);
       
       if (user) {
         localStorage.setItem('currentUser', JSON.stringify(user));
@@ -45,14 +45,14 @@ const Login = () => {
           
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="label">Username</label>
-              <input
-                type="text"
-                className="input"
-                value={credentials.username}
-                onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-                placeholder="Enter your username"
-                required
+                             <label className="label">Email or Username</label>
+               <input
+                 type="text"
+                 className="input"
+                 value={credentials.username}
+                 onChange={(e) => setCredentials({...credentials, username: e.target.value})}
+                 placeholder="Enter email (preferred) or username"
+                 required
               />
             </div>
             
@@ -82,6 +82,7 @@ const Login = () => {
             <p className="text-sm text-gray">Demo accounts:</p>
             <p className="text-sm">Provider: provider1 / password123</p>
             <p className="text-sm">Admin: admin / admin123</p>
+            <p className="text-sm mt-2"><a href="/register" className="nav-link">New provider? Register here</a></p>
           </div>
         </div>
       </div>

@@ -26,22 +26,23 @@ const ToiletDetailProvider = () => {
     setUser(currentUser);
     
     // Load toilet data
-    fetch('/mockData/toilets.json')
-      .then(res => res.json())
-      .then(data => {
-        const toiletData = data.find(t => t.id === toiletId);
-        if (!toiletData) {
-          alert('Toilet not found');
-          navigate('/provider');
-          return;
-        }
-        setToilet(toiletData);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error loading toilet:', error);
-        setLoading(false);
-      });
+    import('../services/api').then(({ getToilets }) => {
+      getToilets()
+        .then(data => {
+          const toiletData = data.find(t => t.id === toiletId)
+          if (!toiletData) {
+            alert('Toilet not found')
+            navigate('/provider')
+            return
+          }
+          setToilet(toiletData)
+          setLoading(false)
+        })
+        .catch(error => {
+          console.error('Error loading toilet:', error)
+          setLoading(false)
+        })
+    })
     
     // Get GPS location
     if (navigator.geolocation) {
@@ -75,20 +76,20 @@ const ToiletDetailProvider = () => {
         toiletId,
         providerId: user.id,
         timestamp: new Date().toISOString(),
-        gps: gpsData ? [gpsData.latitude, gpsData.longitude] : null,
+        gps: gpsData && gpsData.latitude && gpsData.longitude ? [gpsData.latitude, gpsData.longitude] : null,
         beforePhotoBase64: beforePhoto,
         afterPhotoBase64: afterPhoto,
         notes,
         status: 'completed'
       };
       
-      // Mock API call
-      console.log('Submitting cleaning data:', cleaningData);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      alert('Cleaning record submitted successfully! 🎉');
+      const { submitCleaning } = await import('../services/api')
+      const result = await submitCleaning(cleaningData)
+      if (result.offline) {
+        alert('No connection detected. Saved offline and will sync later.')
+      } else {
+        alert('Cleaning record submitted successfully! 🎉')
+      }
       navigate('/provider');
       
     } catch (error) {

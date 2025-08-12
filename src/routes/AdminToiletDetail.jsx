@@ -20,27 +20,25 @@ const AdminToiletDetail = () => {
     }
     setUser(currentUser);
     
-    // Load all data
-    Promise.all([
-      fetch('/mockData/toilets.json').then(res => res.json()),
-      fetch('/mockData/cleanings.json').then(res => res.json()),
-      fetch('/mockData/users.json').then(res => res.json())
-    ]).then(([toiletsData, cleaningsData, usersData]) => {
-      const toiletData = toiletsData.find(t => t.id === toiletId);
-      if (!toiletData) {
-        alert('Toilet not found');
-        navigate('/admin');
-        return;
-      }
-      
-      setToilet(toiletData);
-      setCleanings(cleaningsData.filter(c => c.toiletId === toiletId));
-      setProviders(usersData.filter(u => u.role === 'provider'));
-      setLoading(false);
-    }).catch(error => {
-      console.error('Error loading data:', error);
-      setLoading(false);
-    });
+    // Load all data via service
+    import('../services/api').then(({ getToilets, getCleanings, getUsers }) => {
+      Promise.all([getToilets(), getCleanings(), getUsers()])
+        .then(([toiletsData, cleaningsData, usersData]) => {
+          const toiletData = toiletsData.find(t => t.id === toiletId)
+          if (!toiletData) {
+            alert('Toilet not found')
+            navigate('/admin')
+            return
+          }
+          setToilet(toiletData)
+          setCleanings(cleaningsData.filter(c => c.toiletId === toiletId))
+          setProviders(usersData.filter(u => u.role === 'provider'))
+        })
+        .catch(error => {
+          console.error('Error loading data:', error)
+        })
+        .finally(() => setLoading(false))
+    })
   }, [toiletId, navigate]);
 
   const getProviderName = (providerId) => {
