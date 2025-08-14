@@ -34,8 +34,8 @@ const TopNav = ({ user }) => {
               {user.role === 'admin' && (
                 <>
                   <li><Link to="/admin" className="nav-link">Dashboard</Link></li>
-                  <li><Link to="/admin/providers" className="nav-link">Providers</Link></li>
-                  <li><Link to="/admin/data" className="nav-link">Data</Link></li>
+                  <li><Link to="/admin/manage-providers" className="nav-link">Manage Providers</Link></li>
+                  <li><Link to="/admin/manage-toilets" className="nav-link">Manage Toilets</Link></li>
                   <li><Link to="/admin/reports" className="nav-link">Reports</Link></li>
                 </>
               )}
@@ -47,7 +47,7 @@ const TopNav = ({ user }) => {
                   const pending = JSON.parse(localStorage.getItem('pending_registrations') || '[]')
                   if (pending.length > 0) {
                     return (
-                      <Link to="/admin/data" className="badge badge-warning" title="Pending registrations">
+                      <Link to="/admin/manage-providers" className="badge badge-warning" title="Pending registrations">
                         Pending: {pending.length}
                       </Link>
                     )

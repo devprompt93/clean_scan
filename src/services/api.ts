@@ -61,8 +61,22 @@ async function fetchJson<T>(path: string, cacheKey: string, forceRefresh = false
   return data
 }
 
+function getLocalToilets(): Toilet[] {
+  try {
+    return JSON.parse(localStorage.getItem('admin_mt_toilets') || '[]')
+  } catch {
+    return []
+  }
+}
+
 export async function getToilets(forceRefresh = false): Promise<Toilet[]> {
-  return fetchJson<Toilet[]>('toilets.json', 'toilets', forceRefresh)
+  const base = await fetchJson<Toilet[]>('toilets.json', 'toilets', forceRefresh)
+  const local = getLocalToilets()
+  // Merge by id, prefer local entries
+  const byId = new Map<string, Toilet>()
+  base.forEach(t => byId.set(t.id, t))
+  local.forEach(t => byId.set(t.id, t))
+  return Array.from(byId.values())
 }
 
 export async function getCleanings(forceRefresh = false): Promise<Cleaning[]> {

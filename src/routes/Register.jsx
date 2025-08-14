@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { SA_CITIES } from '../lib/cities'
 import { useNavigate, Link } from 'react-router-dom'
 
-const CITIES = ['Cape Town', 'Durban', 'Johannesburg']
+// Use shared SA cities list
 
 const Register = () => {
   const [form, setForm] = useState({ firstName: '', lastName: '', city: 'Cape Town', email: '', password: '' })
@@ -72,7 +73,7 @@ const Register = () => {
             <div className="form-group">
               <label className="label">City</label>
               <select className="input" value={form.city} onChange={(e)=>setForm(f=>({ ...f, city: e.target.value }))}>
-                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {SA_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <button type="submit" className={`btn btn-primary btn-lg ${submitting ? 'loading' : ''}`} disabled={submitting}>

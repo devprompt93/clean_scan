@@ -1,30 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TopNav from '../components/TopNav'
-import { getUsers } from '../services/api'
+import { 
+  getToilets, 
+  getUsers, 
+  getUsersWithLocal, 
+  getProviderAssignments, 
+  saveProviderAssignments 
+} from '../services/api'
+import { SA_CITIES, ensureProviderCode, generateNextProviderCode } from '../lib/cities'
 
-const CITIES = ['Cape Town', 'Durban', 'Johannesburg']
-const CITY_PREFIX = {
-  'Cape Town': 'CPT',
-  'Durban': 'DBN',
-  'Johannesburg': 'JHB',
-}
-
-function generateNextProviderCode(city, users) {
-  const prefix = CITY_PREFIX[city]
-  const numbers = users
-    .filter(u => u.role === 'provider' && u.city === city && typeof u.providerCode === 'string' && u.providerCode.startsWith(prefix + '-'))
-    .map(u => parseInt(u.providerCode.split('-')[1] || '0', 10))
-    .filter(n => !isNaN(n))
-  const next = (numbers.length ? Math.max(...numbers) : 0) + 1
-  return `${prefix}-${String(next).padStart(3, '0')}`
-}
-
-function ensureProviderCode(user, users) {
-  if (user.role !== 'provider' || !user.city) return user
-  if (user.providerCode && user.providerCode.startsWith(CITY_PREFIX[user.city] + '-')) return user
-  return { ...user, providerCode: generateNextProviderCode(user.city, users) }
-}
+// Use shared cities and code helpers
 
 const Modal = ({ open, title, children, onClose }) => {
   if (!open) return null
@@ -43,8 +29,10 @@ const Modal = ({ open, title, children, onClose }) => {
   )
 }
 
-const AdminDataManagement = () => {
+const AdminManageProviders = () => {
   const [user, setUser] = useState(null)
+
+  // Users and provider management (from Data Management)
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -59,8 +47,15 @@ const AdminDataManagement = () => {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [pending, setPending] = useState([])
+
+  // Provider assignment management (from Providers page)
+  const [toilets, setToilets] = useState([])
+  const [assignments, setAssignments] = useState({})
+  const [saving, setSaving] = useState(false)
+
   const navigate = useNavigate()
 
+  // Bootstrap auth and data
   useEffect(() => {
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
     if (!currentUser.id || currentUser.role !== 'admin') {
@@ -69,29 +64,63 @@ const AdminDataManagement = () => {
     }
     setUser(currentUser)
 
+    // Users: prefer local override cache if present; else fetch base
     const local = localStorage.getItem('admin_dm_users')
+    let loadUsers
     if (local) {
       try {
         const parsed = JSON.parse(local)
-        setUsers(parsed)
-        setLoading(false)
-        return
-      } catch {}
+        loadUsers = Promise.resolve(parsed)
+      } catch {
+        loadUsers = getUsers()
+      }
+    } else {
+      loadUsers = getUsers()
     }
 
-    getUsers()
-      .then(base => {
-        // Seed with city/code if possible (leave empty by default)
-        const seeded = base.map(u => ({ ...u, city: u.city || '', providerCode: u.role === 'provider' ? '' : undefined }))
+    Promise.all([loadUsers, getToilets(), getProviderAssignments()])
+      .then(([usersData, toiletsData, existingAssignments]) => {
+        const seeded = usersData.map(u => ({ ...u, city: u.city || '', providerCode: u.role === 'provider' ? (u.providerCode || '') : undefined }))
         setUsers(seeded)
+        setToilets(toiletsData)
+        setAssignments(existingAssignments)
       })
       .finally(() => setLoading(false))
   }, [navigate])
 
+  // Refresh providers list and assignments on toilets or users changes
   useEffect(() => {
-    localStorage.setItem('admin_dm_users', JSON.stringify(users))
+    const reload = () => {
+      Promise.all([getUsersWithLocal(), getToilets(), getProviderAssignments()])
+        .then(([usersData, toiletsData, existingAssignments]) => {
+          const seeded = usersData.map(u => ({ ...u, city: u.city || '', providerCode: u.role === 'provider' ? (u.providerCode || '') : undefined }))
+          setUsers(seeded)
+          setToilets(toiletsData)
+          setAssignments(existingAssignments)
+        })
+    }
+    const onStorage = (e) => {
+      if (e.key === 'admin_mt_toilets' || e.key === 'admin_dm_users' || e.key === 'providerAssignments') reload()
+    }
+    const onCustom = (e) => {
+      if (e.type === 'toilets:updated' || e.type === 'assignments:updated') reload()
+    }
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('toilets:updated', onCustom)
+    window.addEventListener('assignments:updated', onCustom)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('toilets:updated', onCustom)
+      window.removeEventListener('assignments:updated', onCustom)
+    }
+  }, [])
+
+  // Persist users to localStorage for cross-page consistency and refreshes
+  useEffect(() => {
+    try { localStorage.setItem('admin_dm_users', JSON.stringify(users)) } catch {}
   }, [users])
 
+  // Load pending registrations indicator
   useEffect(() => {
     try {
       const p = JSON.parse(localStorage.getItem('pending_registrations') || '[]')
@@ -110,23 +139,8 @@ const AdminDataManagement = () => {
     }
   }
 
-  const approvePending = (pid) => {
-    const item = pending.find(p => p.id === pid)
-    if (!item) return
-    const fullName = `${item.firstName} ${item.lastName}`.trim()
-    let newUser = { id: `local_${Date.now()}`, name: fullName, role: 'provider', city: item.city, providerCode: '', email: (item.email || '').toLowerCase(), password: item.password }
-    newUser = ensureProviderCode(newUser, users)
-    setUsers(prev => [newUser, ...prev])
-    const updated = pending.filter(p => p.id !== pid)
-    setPending(updated)
-    localStorage.setItem('pending_registrations', JSON.stringify(updated))
-  }
-
-  const rejectPending = (pid) => {
-    const updated = pending.filter(p => p.id !== pid)
-    setPending(updated)
-    localStorage.setItem('pending_registrations', JSON.stringify(updated))
-  }
+  // Derived providers list from users
+  const providers = useMemo(() => users.filter(u => u.role === 'provider'), [users])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -171,10 +185,10 @@ const AdminDataManagement = () => {
     try {
       const raw = localStorage.getItem('providerAssignments')
       if (raw) {
-        const assignments = JSON.parse(raw)
-        if (assignments && assignments[id]) {
-          delete assignments[id]
-          localStorage.setItem('providerAssignments', JSON.stringify(assignments))
+        const next = JSON.parse(raw)
+        if (next && next[id]) {
+          delete next[id]
+          localStorage.setItem('providerAssignments', JSON.stringify(next))
         }
       }
     } catch {}
@@ -227,7 +241,6 @@ const AdminDataManagement = () => {
       if (copy[idx].role !== 'provider') {
         copy[idx].providerCode = undefined
       } else {
-        // update providerCode if city changed or missing
         if (!before.providerCode || before.city !== copy[idx].city || !before.providerCode.startsWith(CITY_PREFIX[copy[idx].city] + '-')) {
           copy[idx].providerCode = generateNextProviderCode(copy[idx].city, copy)
         }
@@ -237,13 +250,40 @@ const AdminDataManagement = () => {
     setIsEditOpen(false)
   }
 
+  // Assignment handlers
+  const handleToggleAssignment = (providerId, toiletId) => {
+    setAssignments(prev => {
+      const current = new Set(prev[providerId] || [])
+      if (current.has(toiletId)) current.delete(toiletId)
+      else current.add(toiletId)
+      return { ...prev, [providerId]: Array.from(current) }
+    })
+  }
+
+  const saveAll = async () => {
+    setSaving(true)
+    try {
+      saveProviderAssignments(assignments)
+      alert('Assignments saved locally. In production, this would call the backend.')
+      try { window.dispatchEvent(new Event('assignments:updated')) } catch {}
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const refreshUsers = async () => {
+    const merged = await getUsersWithLocal()
+    const seeded = merged.map(u => ({ ...u, city: u.city || '', providerCode: u.role === 'provider' ? (u.providerCode || '') : undefined }))
+    setUsers(seeded)
+  }
+
   if (loading) {
     return (
       <div className="page-container">
         <TopNav user={user} />
         <div className="container" style={{ paddingTop: '40px', textAlign: 'center' }}>
           <div className="spinner" style={{ width: '40px', height: '40px' }} />
-          <p className="mt-3">Loading users...</p>
+          <p className="mt-3">Loading provider tools...</p>
         </div>
       </div>
     )
@@ -253,18 +293,20 @@ const AdminDataManagement = () => {
     <div className="page-container">
       <TopNav user={user} />
       <div className="container" style={{ paddingTop: '40px' }}>
+        {/* Header */}
         <div className="card mb-4">
-          <h1 className="text-2xl font-bold mb-2">Data Management</h1>
-          <p className="text-gray">Manage users, filter providers by city, and maintain city-based provider IDs.</p>
+          <h1 className="text-2xl font-bold mb-2">Manage Providers</h1>
+          <p className="text-gray">Add/edit providers, filter/search, approve pending registrations, and assign toilets.</p>
         </div>
 
+        {/* Search/Filter and Actions (Container 2 + actions) */}
         <div className="card mb-4">
           <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="label">City</label>
               <select className="input" value={cityFilter} onChange={(e) => { setCityFilter(e.target.value); setPage(1) }}>
                 <option>All</option>
-                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {SA_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
@@ -273,16 +315,17 @@ const AdminDataManagement = () => {
               <input className="input" placeholder="Filter by name or Provider ID" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
             </div>
 
-            <div style={{ marginLeft: 'auto' }}>
+            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginLeft: 'auto', alignItems: 'center' }}>
               <button className="btn btn-primary" onClick={openAdd}>＋ Add User</button>
-              <button className="btn btn-secondary ml-2" onClick={refreshPending}>🔄 Refresh Pending</button>
+              <button className="btn btn-secondary" onClick={refreshPending}>🔄 Refresh Pending</button>
               {pending.length > 0 && (
-                <span className="badge badge-warning ml-2">Pending: {pending.length}</span>
+                <span className="badge badge-warning">Pending: {pending.length}</span>
               )}
             </div>
           </div>
         </div>
 
+        {/* Pending Registrations (from Data Management) */}
         {pending.length > 0 && (
           <div className="card mb-4">
             <div className="card-header">
@@ -307,8 +350,22 @@ const AdminDataManagement = () => {
                       <td>{new Date(p.createdAt).toLocaleString()}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                          <button className="btn btn-success btn-sm" onClick={() => approvePending(p.id)}>Approve & Add</button>
-                          <button className="btn btn-error btn-sm" onClick={() => rejectPending(p.id)}>Reject</button>
+                          <button className="btn btn-success btn-sm" onClick={() => {
+                            const item = pending.find(x => x.id === p.id)
+                            if (!item) return
+                            const fullName = `${item.firstName} ${item.lastName}`.trim()
+                            let newUser = { id: `local_${Date.now()}`, name: fullName, role: 'provider', city: item.city, providerCode: '', email: (item.email || '').toLowerCase(), password: item.password }
+                            newUser = ensureProviderCode(newUser, users)
+                            setUsers(prev => [newUser, ...prev])
+                            const updated = pending.filter(x => x.id !== p.id)
+                            setPending(updated)
+                            localStorage.setItem('pending_registrations', JSON.stringify(updated))
+                          }}>Approve & Add</button>
+                          <button className="btn btn-error btn-sm" onClick={() => {
+                            const updated = pending.filter(x => x.id !== p.id)
+                            setPending(updated)
+                            localStorage.setItem('pending_registrations', JSON.stringify(updated))
+                          }}>Reject</button>
                         </div>
                       </td>
                     </tr>
@@ -319,7 +376,8 @@ const AdminDataManagement = () => {
           </div>
         )}
 
-        <div className="card">
+        {/* Users Table (Container 3) */}
+        <div className="card mb-6">
           <div style={{ overflowX: 'auto' }}>
             <table className="table" style={{ width: '100%' }}>
               <thead>
@@ -364,6 +422,71 @@ const AdminDataManagement = () => {
           </div>
         </div>
 
+        {/* Provider Assignment Tools (base layout) */}
+        <div className="card mb-4">
+          <h2 className="card-title">Provider Assignments</h2>
+          <p className="card-subtitle">Assign toilets to providers. Changes are saved to your browser for now.</p>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', marginTop: 'var(--spacing-md)' }}>
+            <button className={`btn btn-primary ${saving ? 'loading' : ''}`} disabled={saving} onClick={saveAll}>
+              {saving ? <span className="spinner"></span> : '💾'} Save Assignments
+            </button>
+            <button className="btn btn-secondary" onClick={() => navigate('/admin')}>
+              ← Back to Dashboard
+            </button>
+            <button className="btn btn-secondary" onClick={refreshUsers}>
+              🔄 Refresh Providers
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-2">
+          {providers.map(p => (
+            <div key={p.id} className="card">
+              <div className="card-header">
+                <h3 className="card-title" style={{ margin: 0 }}>{p.name}</h3>
+                <p className="card-subtitle">ID: {p.id}</p>
+              </div>
+
+              <div style={{ maxHeight: 320, overflow: 'auto', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)' }}>
+                <table className="table" style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '8px' }}>Assign</th>
+                      <th style={{ textAlign: 'left', padding: '8px' }}>Toilet</th>
+                      <th style={{ textAlign: 'left', padding: '8px' }}>Area</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {toilets.map(t => {
+                      const checked = (assignments[p.id] || []).includes(t.id)
+                      return (
+                        <tr key={t.id}>
+                          <td style={{ padding: '8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => handleToggleAssignment(p.id, t.id)}
+                            />
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <div style={{ fontWeight: 500 }}>{t.name}</div>
+                            <div className="text-xs text-gray">{t.id}</div>
+                          </td>
+                          <td style={{ padding: '8px' }}>{t.area}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-3 text-sm text-gray">
+                Assigned: <strong>{(assignments[p.id] || []).length}</strong> / {toilets.length}
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Add Modal */}
         <Modal open={isAddOpen} title="Add User" onClose={() => setIsAddOpen(false)}>
           <div className="form-group">
@@ -377,11 +500,11 @@ const AdminDataManagement = () => {
               <option value="admin">Admin</option>
             </select>
           </div>
-          {addForm.role === 'provider' && (
+              {addForm.role === 'provider' && (
             <div className="form-group">
               <label className="label">City</label>
-              <select className="input" value={addForm.city} onChange={(e)=>setAddForm(f=>({ ...f, city: e.target.value }))}>
-                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <select className="input" value={addForm.city} onChange={(e)=>setAddForm(f=>({ ...f, city: e.target.value }))}>
+                    {SA_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           )}
@@ -408,7 +531,7 @@ const AdminDataManagement = () => {
             <div className="form-group">
               <label className="label">City</label>
               <select className="input" value={editForm.city} onChange={(e)=>setEditForm(f=>({ ...f, city: e.target.value }))}>
-                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {SA_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           )}
@@ -429,4 +552,6 @@ const AdminDataManagement = () => {
   )
 }
 
-export default AdminDataManagement 
+export default AdminManageProviders
+
+

@@ -88,11 +88,11 @@ Cleaning submissions are attempted against `http://localhost:4000/cleanings`. If
 
 ## Provider assignments
 
-Admins can manage assignments at `/admin/providers`. Changes are saved to `localStorage` (`providerAssignments`) and override mock defaults during the session.
+Admins can manage assignments and user data at `/admin/manage-providers`. Changes are saved to `localStorage` (`providerAssignments` and `admin_dm_users`) and override mock defaults during the session.
 
 ## Registration and Admin Approval
 
 - Providers can register at `/register` with First name, Last name, Email, Password, and City.
-- Registrations are stored locally in `pending_registrations` until an admin approves them in `/admin/data`.
+- Registrations are stored locally in `pending_registrations` until an admin approves them in `/admin/manage-providers`.
 - Admin Data Management shows a Pending section to Approve or Reject. Approving creates a provider with a city-based Provider ID and carries over email/password for login.
 - Login accepts email+password (preferred) or existing mock usernames.

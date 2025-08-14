@@ -44,6 +44,34 @@ const AdminDashboard = () => {
     })
   }, [navigate]);
 
+  // Sync on toilets added/changed elsewhere
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'admin_mt_toilets') {
+        import('../services/api').then(({ getToilets, getCleanings, getUsersWithLocal }) => {
+          Promise.all([getToilets(), getCleanings(), getUsersWithLocal()]).then(([toiletsData, cleaningsData, usersData]) => {
+            setToilets(toiletsData)
+            setCleanings(cleaningsData)
+            const providersData = usersData.filter(u => u.role === 'provider')
+            setProviders(providersData)
+            calculateStats(toiletsData, cleaningsData, providersData, searchTerm ? (filteredResults.toilets.map(t => t.id)) : [])
+          })
+        })
+      }
+    }
+    const onCustom = (e) => {
+      if (e && e.type === 'toilets:updated') {
+        onStorage({ key: 'admin_mt_toilets' })
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('toilets:updated', onCustom)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('toilets:updated', onCustom)
+    }
+  }, [searchTerm, filteredResults.toilets])
+
   // Calculate stats based on current filter
   const calculateStats = (toiletsData, cleaningsData, providersData, filteredToiletIds) => {
     const relevantToilets = filteredToiletIds.length > 0 ? 
@@ -215,15 +243,9 @@ const AdminDashboard = () => {
             </button>
             <button 
               className="btn btn-secondary"
-              onClick={() => navigate('/admin/providers')}
+              onClick={() => navigate('/admin/manage-providers')}
             >
               👥 Manage Providers
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={() => navigate('/admin/data')}
-            >
-              🗂️ Data Management
             </button>
             <button 
               className="btn btn-secondary"

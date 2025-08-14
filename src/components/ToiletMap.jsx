@@ -18,7 +18,10 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
     const loader = new Loader({
       apiKey: googleMapsApiKey,
       version: 'weekly',
-      libraries: ['places']
+      libraries: ['places'],
+      // Enable AdvancedMarkerElement by requesting the marker library
+      // See: https://developers.google.com/maps/documentation/javascript/advanced-markers/overview
+      // Note: Loader v1 uses libraries array; Advanced Markers are under 'marker'
     });
 
     loader.load().then(() => {
@@ -54,6 +57,14 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
 
     // Add markers for each toilet
     displayToilets.forEach(toilet => {
+      const hasCoordsArray = Array.isArray(toilet.gpsCoords) && toilet.gpsCoords.length === 2
+      const lat = hasCoordsArray ? Number(toilet.gpsCoords[0]) : NaN
+      const lng = hasCoordsArray ? Number(toilet.gpsCoords[1]) : NaN
+      const coordsValid = Number.isFinite(lat) && Number.isFinite(lng)
+
+      if (!coordsValid) {
+        return
+      }
       const cleaning = cleanings.find(c => c.toiletId === toilet.id);
       
       // Determine pin color based on status
@@ -90,8 +101,9 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
       };
 
       // Create pulsing marker for GPS tracker effect
+      // TODO: Consider migrating to google.maps.marker.AdvancedMarkerElement
       const pulseMarker = new google.maps.Marker({
-        position: { lat: toilet.gpsCoords[0], lng: toilet.gpsCoords[1] },
+        position: { lat, lng },
         map: map.current,
         icon: pulseIcon,
         animation: google.maps.Animation.BOUNCE,
@@ -104,8 +116,9 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
       }, 2000);
 
       // Create main marker
+      // TODO: Consider migrating to google.maps.marker.AdvancedMarkerElement
       const marker = new google.maps.Marker({
-        position: { lat: toilet.gpsCoords[0], lng: toilet.gpsCoords[1] },
+        position: { lat, lng },
         map: map.current,
         icon: markerIcon,
         title: toilet.name,
@@ -113,6 +126,7 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
       });
 
       // Create info window
+      const gpsText = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
       const infoWindow = new google.maps.InfoWindow({
         content: `
           <div style="padding: 8px; min-width: 200px;">
@@ -120,7 +134,7 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
             <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Area:</strong> ${toilet.area}</p>
             <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Status:</strong> ${toilet.status}</p>
             <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>Provider:</strong> ${toilet.provider}</p>
-            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>GPS:</strong> ${toilet.gpsCoords[0].toFixed(6)}, ${toilet.gpsCoords[1].toFixed(6)}</p>
+            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;"><strong>GPS:</strong> ${gpsText}</p>
             <p style="margin: 0; color: #6b7280; font-size: 14px;"><strong>Last Cleaned:</strong> ${new Date(toilet.lastCleaned).toLocaleDateString()}</p>
           </div>
         `
@@ -132,7 +146,7 @@ const ToiletMap = ({ toilets, cleanings, searchResults }) => {
       });
 
       markersRef.current.push(marker, pulseMarker);
-      bounds.extend({ lat: toilet.gpsCoords[0], lng: toilet.gpsCoords[1] });
+      bounds.extend({ lat, lng });
     });
 
     // Fit map to show all markers

@@ -8,8 +8,8 @@ import AdminDashboard from "./routes/AdminDashboard.jsx";
 import AdminToiletDetail from "./routes/AdminToiletDetail.jsx";
 import ReportsPage from "./routes/ReportsPage.jsx";
 import NotFound from "./pages/NotFound";
-import AdminProviders from "./routes/AdminProviders.jsx";
-import AdminDataManagement from "./routes/AdminDataManagement.jsx";
+import AdminManageProviders from "./routes/AdminManageProviders.jsx";
+import AdminManageToilets from "./routes/AdminManageToilets.jsx";
 import Register from "./routes/Register.jsx";
 
 // Simple error boundary for Router issues
@@ -85,8 +85,8 @@ const App = () => (
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/toilet/:toiletId" element={<AdminToiletDetail />} />
         <Route path="/admin/reports" element={<ReportsPage />} />
-        <Route path="/admin/providers" element={<AdminProviders />} />
-        <Route path="/admin/data" element={<AdminDataManagement />} />
+        <Route path="/admin/manage-providers" element={<AdminManageProviders />} />
+        <Route path="/admin/manage-toilets" element={<AdminManageToilets />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
