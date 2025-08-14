@@ -8,7 +8,7 @@ import {
   getProviderAssignments, 
   saveProviderAssignments 
 } from '../services/api'
-import { SA_CITIES, ensureProviderCode, generateNextProviderCode } from '../lib/cities'
+import { SA_CITIES, ensureProviderCode, generateNextProviderCode, getCityPrefix } from '../lib/cities'
 
 // Use shared cities and code helpers
 
@@ -47,6 +47,8 @@ const AdminManageProviders = () => {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [pending, setPending] = useState([])
+  const [pendingPage, setPendingPage] = useState(1)
+  const [activeTab, setActiveTab] = useState('providers')
 
   // Provider assignment management (from Providers page)
   const [toilets, setToilets] = useState([])
@@ -134,10 +136,17 @@ const AdminManageProviders = () => {
     try {
       const p = JSON.parse(localStorage.getItem('pending_registrations') || '[]')
       setPending(p)
+      try { window.dispatchEvent(new Event('pending:updated')) } catch {}
     } catch {
       setPending([])
     }
   }
+
+  // Reset pagination on tab switch
+  useEffect(() => {
+    if (activeTab === 'providers') setPage(1)
+    else setPendingPage(1)
+  }, [activeTab])
 
   // Derived providers list from users
   const providers = useMemo(() => users.filter(u => u.role === 'provider'), [users])
@@ -167,6 +176,15 @@ const AdminManageProviders = () => {
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
   const pageItems = useMemo(() => sorted.slice((page - 1) * pageSize, page * pageSize), [sorted, page])
+
+  // Pending pagination derived data
+  const pendingTotalPages = useMemo(() => Math.max(1, Math.ceil(pending.length / pageSize)), [pending, pageSize])
+  const pendingPageItems = useMemo(() => pending.slice((pendingPage - 1) * pageSize, pendingPage * pageSize), [pending, pendingPage, pageSize])
+
+  // Clamp pending page if list shrinks
+  useEffect(() => {
+    setPendingPage(p => Math.min(p, pendingTotalPages))
+  }, [pendingTotalPages])
 
   const toggleSort = (key) => {
     if (sortBy === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
@@ -241,7 +259,8 @@ const AdminManageProviders = () => {
       if (copy[idx].role !== 'provider') {
         copy[idx].providerCode = undefined
       } else {
-        if (!before.providerCode || before.city !== copy[idx].city || !before.providerCode.startsWith(CITY_PREFIX[copy[idx].city] + '-')) {
+        const prefix = getCityPrefix(copy[idx].city)
+        if (!before.providerCode || before.city !== copy[idx].city || !before.providerCode.startsWith(prefix + '-')) {
           copy[idx].providerCode = generateNextProviderCode(copy[idx].city, copy)
         }
       }
@@ -289,6 +308,48 @@ const AdminManageProviders = () => {
     )
   }
 
+  // Shared Pagination component
+  const Pagination = ({ page, totalPages, onChange }) => {
+    const createPages = () => {
+      const pages = []
+      if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i)
+      } else {
+        pages.push(1)
+        if (page > 3) pages.push('…')
+        const start = Math.max(2, page - 1)
+        const end = Math.min(totalPages - 1, page + 1)
+        for (let i = start; i <= end; i++) pages.push(i)
+        if (page < totalPages - 2) pages.push('…')
+        pages.push(totalPages)
+      }
+      return pages
+    }
+    const pages = createPages()
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 'var(--spacing-md)' }}>
+        <div className="text-sm text-gray">Page {page} of {totalPages}</div>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button className="btn btn-secondary btn-sm" disabled={page<=1} onClick={() => onChange(page-1)}>Prev</button>
+          {pages.map((p, idx) => (
+            typeof p === 'number' ? (
+              <button
+                key={`p-${p}-${idx}`}
+                onClick={() => onChange(p)}
+                className={`btn btn-sm ${p===page ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ minWidth: 32 }}
+                aria-current={p===page ? 'page' : undefined}
+              >{p}</button>
+            ) : (
+              <span key={`e-${idx}`} className="text-sm text-gray" style={{ padding: '0 4px' }}>…</span>
+            )
+          ))}
+          <button className="btn btn-secondary btn-sm" disabled={page>=totalPages} onClick={() => onChange(page+1)}>Next</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="page-container">
       <TopNav user={user} />
@@ -318,37 +379,69 @@ const AdminManageProviders = () => {
             <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginLeft: 'auto', alignItems: 'center' }}>
               <button className="btn btn-primary" onClick={openAdd}>＋ Add User</button>
               <button className="btn btn-secondary" onClick={refreshPending}>🔄 Refresh Pending</button>
-              {pending.length > 0 && (
-                <span className="badge badge-warning">Pending: {pending.length}</span>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Pending Registrations (from Data Management) */}
-        {pending.length > 0 && (
-          <div className="card mb-4">
-            <div className="card-header">
-              <h2 className="card-title">Pending Provider Registrations</h2>
-              <p className="card-subtitle">Review registrations submitted by providers and add them to the system</p>
+        {/* Tabbed container: Providers vs Pending */}
+        <div className="card mb-4" style={{ overflow: 'hidden' }}>
+          <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+            <h2 className="card-title" style={{ margin: 0, flex: 1 }}>Providers</h2>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className={`btn btn-secondary btn-sm ${activeTab==='providers' ? 'active' : ''}`}
+                onClick={() => setActiveTab('providers')}
+                aria-pressed={activeTab==='providers'}
+              >
+                Providers Table
+              </button>
+              <button 
+                className={`btn btn-secondary btn-sm ${activeTab==='pending' ? 'active' : ''}`}
+                onClick={() => setActiveTab('pending')}
+                aria-pressed={activeTab==='pending'}
+                style={{ position: 'relative', paddingRight: pending.length>0 ? '28px' : undefined }}>
+                Pending Providers
+                {pending.length > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '-6px',
+                      right: '-8px',
+                      background: 'var(--warning-600, #f59e0b)',
+                      color: 'white',
+                      borderRadius: '9999px',
+                      fontSize: '10px',
+                      lineHeight: 1,
+                      padding: '4px 6px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.12)'
+                    }}
+                    aria-label={`Pending providers: ${pending.length}`}
+                  >
+                    {pending.length}
+                  </span>
+                )}
+              </button>
             </div>
+          </div>
+
+            {activeTab === 'pending' ? (
             <div style={{ overflowX: 'auto' }}>
-              <table className="table" style={{ width: '100%' }}>
+              <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
                 <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>City</th>
-                    <th>Submitted</th>
-                    <th>Actions</th>
+                  <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Name</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>City</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Submitted</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pending.map(p => (
-                    <tr key={p.id}>
-                      <td>{p.firstName} {p.lastName}</td>
-                      <td>{p.city}</td>
-                      <td>{new Date(p.createdAt).toLocaleString()}</td>
-                      <td>
+                  {pendingPageItems.map((p, idx) => (
+                    <tr key={p.id} style={{ background: idx % 2 ? 'var(--gray-25, #fafafa)' : 'white' }}>
+                      <td style={{ padding: '10px' }}>{p.firstName} {p.lastName}</td>
+                      <td style={{ padding: '10px' }}>{p.city}</td>
+                      <td style={{ padding: '10px' }}>{new Date(p.createdAt).toLocaleString()}</td>
+                      <td style={{ padding: '10px' }}>
                         <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
                           <button className="btn btn-success btn-sm" onClick={() => {
                             const item = pending.find(x => x.id === p.id)
@@ -360,11 +453,19 @@ const AdminManageProviders = () => {
                             const updated = pending.filter(x => x.id !== p.id)
                             setPending(updated)
                             localStorage.setItem('pending_registrations', JSON.stringify(updated))
+                            localStorage.setItem('pending_registrations_ts', String(Date.now()))
+                            try { window.dispatchEvent(new Event('pending:updated')) } catch {}
+                            const newTotal = Math.max(1, Math.ceil((updated.length) / pageSize))
+                            setPendingPage(p => Math.min(p, newTotal))
                           }}>Approve & Add</button>
                           <button className="btn btn-error btn-sm" onClick={() => {
                             const updated = pending.filter(x => x.id !== p.id)
                             setPending(updated)
                             localStorage.setItem('pending_registrations', JSON.stringify(updated))
+                            localStorage.setItem('pending_registrations_ts', String(Date.now()))
+                            try { window.dispatchEvent(new Event('pending:updated')) } catch {}
+                            const newTotal = Math.max(1, Math.ceil((updated.length) / pageSize))
+                            setPendingPage(p => Math.min(p, newTotal))
                           }}>Reject</button>
                         </div>
                       </td>
@@ -372,55 +473,47 @@ const AdminManageProviders = () => {
                   ))}
                 </tbody>
               </table>
+              <Pagination page={pendingPage} totalPages={pendingTotalPages} onChange={(p) => setPendingPage(p)} />
             </div>
-          </div>
-        )}
-
-        {/* Users Table (Container 3) */}
-        <div className="card mb-6">
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('providerCode')}>Provider ID {sortBy==='providerCode' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('name')}>Name {sortBy==='name' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('role')}>Role {sortBy==='role' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('city')}>City {sortBy==='city' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map(u => (
-                  <tr key={u.id}>
-                    <td>{u.role === 'provider' ? (u.providerCode || '—') : '—'}</td>
-                    <td>{u.name}</td>
-                    <td>{u.role}</td>
-                    <td>{u.role === 'provider' ? (u.city || '—') : '—'}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
-                        <button className="btn btn-error btn-sm" onClick={() => handleDelete(u.id)}>Delete</button>
-                      </div>
-                    </td>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                <thead>
+                  <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
+                    <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('providerCode')}>Provider ID {sortBy==='providerCode' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                    <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('name')}>Name {sortBy==='name' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                    <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('role')}>Role {sortBy==='role' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                    <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('city')}>City {sortBy==='city' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {sorted.length === 0 && (
-            <div className="text-center text-gray" style={{ padding: 'var(--spacing-lg)' }}>No users match your filters.</div>
-          )}
-
-          {/* Pagination */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 'var(--spacing-md)' }}>
-            <div className="text-sm text-gray">Page {page} of {totalPages}</div>
-            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-              <button className="btn btn-secondary btn-sm" disabled={page<=1} onClick={() => setPage(p => Math.max(1, p-1))}>Prev</button>
-              <button className="btn btn-secondary btn-sm" disabled={page>=totalPages} onClick={() => setPage(p => Math.min(totalPages, p+1))}>Next</button>
+                </thead>
+                <tbody>
+                  {pageItems.map((u, idx) => (
+                    <tr key={u.id} style={{ background: idx % 2 ? 'var(--gray-25, #fafafa)' : 'white' }}>
+                      <td style={{ padding: '10px' }}>{u.role === 'provider' ? (u.providerCode || '—') : '—'}</td>
+                      <td style={{ padding: '10px' }}>{u.name}</td>
+                      <td style={{ padding: '10px' }}>{u.role}</td>
+                      <td style={{ padding: '10px' }}>{u.role === 'provider' ? (u.city || '—') : '—'}</td>
+                      <td style={{ padding: '10px' }}>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
+                          <button className="btn btn-error btn-sm" onClick={() => handleDelete(u.id)}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onChange={(p) => setPage(p)}
+              />
             </div>
-          </div>
+          )}
         </div>
+
+        {/* Removed separate providers table card; now rendered within the tabbed container above */}
 
         {/* Provider Assignment Tools (base layout) */}
         <div className="card mb-4">
