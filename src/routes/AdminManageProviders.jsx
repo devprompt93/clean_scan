@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TopNav from '../components/TopNav'
+import '../styles/providers.css'
 import { 
   getToilets, 
   getUsers, 
@@ -131,16 +132,6 @@ const AdminManageProviders = () => {
       setPending([])
     }
   }, [])
-
-  const refreshPending = () => {
-    try {
-      const p = JSON.parse(localStorage.getItem('pending_registrations') || '[]')
-      setPending(p)
-      try { window.dispatchEvent(new Event('pending:updated')) } catch {}
-    } catch {
-      setPending([])
-    }
-  }
 
   // Reset pagination on tab switch
   useEffect(() => {
@@ -354,15 +345,18 @@ const AdminManageProviders = () => {
     <div className="page-container">
       <TopNav user={user} />
       <div className="container" style={{ paddingTop: '40px' }}>
-        {/* Header */}
-        <div className="card mb-4">
-          <h1 className="text-2xl font-bold mb-2">Manage Providers</h1>
-          <p className="text-gray">Add/edit providers, filter/search, approve pending registrations, and assign toilets.</p>
-        </div>
+        {/* Unified Providers Panel */}
+        <div className="card providers-panel mb-4">
+          {/* Header Row */}
+          <div className="providers-panel__header">
+            <h1 className="providers-panel__title">Manage Providers</h1>
+            <div className="providers-panel__actions">
+              <button className="btn btn-primary" onClick={openAdd}>＋ Add User</button>
+            </div>
+          </div>
 
-        {/* Search/Filter and Actions (Container 2 + actions) */}
-        <div className="card mb-4">
-          <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Controls Row */}
+          <div className="providers-panel__controls">
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="label">City</label>
               <select className="input" value={cityFilter} onChange={(e) => { setCityFilter(e.target.value); setPage(1) }}>
@@ -375,142 +369,123 @@ const AdminManageProviders = () => {
               <label className="label">Search</label>
               <input className="input" placeholder="Filter by name or Provider ID" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
             </div>
-
-            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginLeft: 'auto', alignItems: 'center' }}>
-              <button className="btn btn-primary" onClick={openAdd}>＋ Add User</button>
-              <button className="btn btn-secondary" onClick={refreshPending}>🔄 Refresh Pending</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabbed container: Providers vs Pending */}
-        <div className="card mb-4" style={{ overflow: 'hidden' }}>
-          <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-            <h2 className="card-title" style={{ margin: 0, flex: 1 }}>Providers</h2>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                className={`btn btn-secondary btn-sm ${activeTab==='providers' ? 'active' : ''}`}
-                onClick={() => setActiveTab('providers')}
-                aria-pressed={activeTab==='providers'}
-              >
-                Providers Table
-              </button>
-              <button 
-                className={`btn btn-secondary btn-sm ${activeTab==='pending' ? 'active' : ''}`}
-                onClick={() => setActiveTab('pending')}
-                aria-pressed={activeTab==='pending'}
-                style={{ position: 'relative', paddingRight: pending.length>0 ? '28px' : undefined }}>
-                Pending Providers
-                {pending.length > 0 && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: '-6px',
-                      right: '-8px',
-                      background: 'var(--warning-600, #f59e0b)',
-                      color: 'white',
-                      borderRadius: '9999px',
-                      fontSize: '10px',
-                      lineHeight: 1,
-                      padding: '4px 6px',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.12)'
-                    }}
-                    aria-label={`Pending providers: ${pending.length}`}
-                  >
-                    {pending.length}
-                  </span>
-                )}
-              </button>
-            </div>
           </div>
 
+          {/* Tab Switcher */}
+          <div className="providers-panel__tabs">
+            <button
+              className={`tab ${activeTab === 'providers' ? 'tab--active' : ''}`}
+              onClick={() => setActiveTab('providers')}
+              aria-pressed={activeTab==='providers'}
+            >
+              Providers Table
+            </button>
+            <button
+              className={`tab ${activeTab === 'pending' ? 'tab--active' : ''}`}
+              onClick={() => setActiveTab('pending')}
+              aria-pressed={activeTab==='pending'}
+            >
+              <span>Pending Providers</span>
+              {pending.length > 0 && (
+                <span className="tab__badge" aria-label={`Pending providers: ${pending.length}`}>{pending.length}</span>
+              )}
+            </button>
+          </div>
+
+          {/* Shared Table Slot */}
+          <div className="providers-panel__table">
             {activeTab === 'pending' ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
-                <thead>
-                  <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Name</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>City</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Submitted</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingPageItems.map((p, idx) => (
-                    <tr key={p.id} style={{ background: idx % 2 ? 'var(--gray-25, #fafafa)' : 'white' }}>
-                      <td style={{ padding: '10px' }}>{p.firstName} {p.lastName}</td>
-                      <td style={{ padding: '10px' }}>{p.city}</td>
-                      <td style={{ padding: '10px' }}>{new Date(p.createdAt).toLocaleString()}</td>
-                      <td style={{ padding: '10px' }}>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                          <button className="btn btn-success btn-sm" onClick={() => {
-                            const item = pending.find(x => x.id === p.id)
-                            if (!item) return
-                            const fullName = `${item.firstName} ${item.lastName}`.trim()
-                            let newUser = { id: `local_${Date.now()}`, name: fullName, role: 'provider', city: item.city, providerCode: '', email: (item.email || '').toLowerCase(), password: item.password }
-                            newUser = ensureProviderCode(newUser, users)
-                            setUsers(prev => [newUser, ...prev])
-                            const updated = pending.filter(x => x.id !== p.id)
-                            setPending(updated)
-                            localStorage.setItem('pending_registrations', JSON.stringify(updated))
-                            localStorage.setItem('pending_registrations_ts', String(Date.now()))
-                            try { window.dispatchEvent(new Event('pending:updated')) } catch {}
-                            const newTotal = Math.max(1, Math.ceil((updated.length) / pageSize))
-                            setPendingPage(p => Math.min(p, newTotal))
-                          }}>Approve & Add</button>
-                          <button className="btn btn-error btn-sm" onClick={() => {
-                            const updated = pending.filter(x => x.id !== p.id)
-                            setPending(updated)
-                            localStorage.setItem('pending_registrations', JSON.stringify(updated))
-                            localStorage.setItem('pending_registrations_ts', String(Date.now()))
-                            try { window.dispatchEvent(new Event('pending:updated')) } catch {}
-                            const newTotal = Math.max(1, Math.ceil((updated.length) / pageSize))
-                            setPendingPage(p => Math.min(p, newTotal))
-                          }}>Reject</button>
-                        </div>
-                      </td>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Name</th>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>City</th>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Submitted</th>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              <Pagination page={pendingPage} totalPages={pendingTotalPages} onChange={(p) => setPendingPage(p)} />
-            </div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
-                <thead>
-                  <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
-                    <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('providerCode')}>Provider ID {sortBy==='providerCode' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                    <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('name')}>Name {sortBy==='name' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                    <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('role')}>Role {sortBy==='role' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                    <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('city')}>City {sortBy==='city' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageItems.map((u, idx) => (
-                    <tr key={u.id} style={{ background: idx % 2 ? 'var(--gray-25, #fafafa)' : 'white' }}>
-                      <td style={{ padding: '10px' }}>{u.role === 'provider' ? (u.providerCode || '—') : '—'}</td>
-                      <td style={{ padding: '10px' }}>{u.name}</td>
-                      <td style={{ padding: '10px' }}>{u.role}</td>
-                      <td style={{ padding: '10px' }}>{u.role === 'provider' ? (u.city || '—') : '—'}</td>
-                      <td style={{ padding: '10px' }}>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
-                          <button className="btn btn-error btn-sm" onClick={() => handleDelete(u.id)}>Delete</button>
-                        </div>
-                      </td>
+                  </thead>
+                  <tbody>
+                    {pendingPageItems.map((p, idx) => (
+                      <tr key={p.id} style={{ background: idx % 2 ? 'var(--gray-25, #fafafa)' : 'white' }}>
+                        <td style={{ padding: '10px' }}>{p.firstName} {p.lastName}</td>
+                        <td style={{ padding: '10px' }}>{p.city}</td>
+                        <td style={{ padding: '10px' }}>{new Date(p.createdAt).toLocaleString()}</td>
+                        <td style={{ padding: '10px' }}>
+                          <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                            <button className="btn btn-success btn-sm" onClick={() => {
+                              const item = pending.find(x => x.id === p.id)
+                              if (!item) return
+                              const fullName = `${item.firstName} ${item.lastName}`.trim()
+                              let newUser = { id: `local_${Date.now()}`, name: fullName, role: 'provider', city: item.city, providerCode: '', email: (item.email || '').toLowerCase(), password: item.password }
+                              newUser = ensureProviderCode(newUser, users)
+                              setUsers(prev => [newUser, ...prev])
+                              const updated = pending.filter(x => x.id !== p.id)
+                              setPending(updated)
+                              localStorage.setItem('pending_registrations', JSON.stringify(updated))
+                              localStorage.setItem('pending_registrations_ts', String(Date.now()))
+                              try { window.dispatchEvent(new Event('pending:updated')) } catch {}
+                              const newTotal = Math.max(1, Math.ceil((updated.length) / pageSize))
+                              setPendingPage(p => Math.min(p, newTotal))
+                            }}>Approve & Add</button>
+                            <button className="btn btn-error btn-sm" onClick={() => {
+                              const updated = pending.filter(x => x.id !== p.id)
+                              setPending(updated)
+                              localStorage.setItem('pending_registrations', JSON.stringify(updated))
+                              localStorage.setItem('pending_registrations_ts', String(Date.now()))
+                              try { window.dispatchEvent(new Event('pending:updated')) } catch {}
+                              const newTotal = Math.max(1, Math.ceil((updated.length) / pageSize))
+                              setPendingPage(p => Math.min(p, newTotal))
+                            }}>Reject</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="providers-panel__pagination">
+                  <Pagination page={pendingPage} totalPages={pendingTotalPages} onChange={(p) => setPendingPage(p)} />
+                </div>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
+                      <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('providerCode')}>Provider ID {sortBy==='providerCode' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                      <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('name')}>Name {sortBy==='name' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                      <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('role')}>Role {sortBy==='role' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                      <th style={{ cursor: 'pointer', padding: '12px', textAlign: 'left' }} onClick={() => toggleSort('city')}>City {sortBy==='city' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                onChange={(p) => setPage(p)}
-              />
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {pageItems.map((u, idx) => (
+                      <tr key={u.id} style={{ background: idx % 2 ? 'var(--gray-25, #fafafa)' : 'white' }}>
+                        <td style={{ padding: '10px' }}>{u.role === 'provider' ? (u.providerCode || '—') : '—'}</td>
+                        <td style={{ padding: '10px' }}>{u.name}</td>
+                        <td style={{ padding: '10px' }}>{u.role}</td>
+                        <td style={{ padding: '10px' }}>{u.role === 'provider' ? (u.city || '—') : '—'}</td>
+                        <td style={{ padding: '10px' }}>
+                          <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
+                            <button className="btn btn-error btn-sm" onClick={() => handleDelete(u.id)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="providers-panel__pagination">
+                  <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    onChange={(p) => setPage(p)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Removed separate providers table card; now rendered within the tabbed container above */}
