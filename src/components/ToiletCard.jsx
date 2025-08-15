@@ -1,4 +1,4 @@
-const ToiletCard = ({ toilet, onClick, showProvider = false }) => {
+const ToiletCard = ({ toilet, onClick, showProvider = false, onEdit, onDelete, showActions = false, providers = [] }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Completed': return 'badge-success';
@@ -37,7 +37,11 @@ const ToiletCard = ({ toilet, onClick, showProvider = false }) => {
         <div><strong>ID:</strong> {toilet.id}</div>
         <div><strong>Area:</strong> {toilet.area}</div>
         {showProvider && (
-          <div><strong>Provider:</strong> {toilet.provider || 'Unassigned'}</div>
+          <div><strong>Provider:</strong> {
+            toilet.provider ? 
+              (providers.find(p => p.id === toilet.provider)?.name || toilet.provider) : 
+              'Unassigned'
+          }</div>
         )}
       </div>
       
@@ -64,6 +68,39 @@ const ToiletCard = ({ toilet, onClick, showProvider = false }) => {
           fontStyle: 'italic'
         }}>
           {toilet.description}
+        </div>
+      )}
+      
+      {/* Action Buttons */}
+      {showActions && (
+        <div className="card-actions" style={{ 
+          marginTop: 'var(--spacing-md)', 
+          paddingTop: 'var(--spacing-sm)',
+          borderTop: '1px solid var(--gray-200)',
+          display: 'flex',
+          gap: 'var(--spacing-sm)',
+          justifyContent: 'flex-end'
+        }}>
+          <button 
+            className="btn btn-secondary btn-sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit?.(toilet)
+            }}
+            style={{ minWidth: 'auto', padding: '4px 8px' }}
+          >
+            ✏️ Edit
+          </button>
+          <button 
+            className="btn btn-error btn-sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete?.(toilet)
+            }}
+            style={{ minWidth: 'auto', padding: '4px 8px' }}
+          >
+            🗑️ Delete
+          </button>
         </div>
       )}
     </div>

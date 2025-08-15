@@ -273,9 +273,45 @@ const AdminManageProviders = () => {
   const saveAll = async () => {
     setSaving(true)
     try {
+      // Save assignments
       saveProviderAssignments(assignments)
-      alert('Assignments saved locally. In production, this would call the backend.')
-      try { window.dispatchEvent(new Event('assignments:updated')) } catch {}
+      
+      // Update toilet records with provider assignments
+      const updatedToilets = toilets.map(toilet => {
+        // Find which provider is assigned to this toilet
+        let assignedProvider = null
+        for (const [providerId, toiletIds] of Object.entries(assignments)) {
+          if (toiletIds.includes(toilet.id)) {
+            const provider = users.find(u => u.id === providerId)
+            assignedProvider = provider ? provider.id : null
+            break
+          }
+        }
+        
+        return {
+          ...toilet,
+          provider: assignedProvider || ''
+        }
+      })
+      
+      // Update local storage with updated toilets
+      try {
+        localStorage.setItem('admin_toilets', JSON.stringify(updatedToilets))
+      } catch {}
+      
+      // Update state
+      setToilets(updatedToilets)
+      
+      // Dispatch events to notify other components
+      try { 
+        window.dispatchEvent(new Event('assignments:updated'))
+        window.dispatchEvent(new Event('toilets:updated'))
+      } catch {}
+      
+      alert('Assignments saved and toilet records updated successfully!')
+    } catch (error) {
+      console.error('Error saving assignments:', error)
+      alert('Error saving assignments. Please try again.')
     } finally {
       setSaving(false)
     }

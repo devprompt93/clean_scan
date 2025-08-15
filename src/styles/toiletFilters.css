@@ -1,0 +1,119 @@
+/* Enhanced toilet filter styling */
+.form-group select:disabled {
+  background-color: var(--gray-100);
+  color: var(--gray-500);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-group select:disabled + .text-xs {
+  color: var(--gray-400);
+}
+
+/* Filter section styling */
+.filters-section {
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.filter-row {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.filter-group {
+  min-width: 200px;
+  margin-bottom: 0;
+}
+
+
+
+.filter-helper {
+  font-size: 0.75rem;
+  color: var(--gray-600);
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.filter-helper--disabled {
+  color: var(--gray-400);
+}
+
+/* Button styling */
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--gray-300);
+  color: var(--gray-700);
+}
+
+.btn-outline:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+}
+
+.btn-outline.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+
+/* Action buttons styling */
+.card-actions {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.card:hover .card-actions {
+  opacity: 1;
+}
+
+.card-actions .btn {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  min-height: auto;
+}
+
+.card-actions .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Specific button styles */
+.card-actions .btn-secondary {
+  background: var(--blue-50);
+  border-color: var(--blue-200);
+  color: var(--blue-700);
+}
+
+.card-actions .btn-secondary:hover {
+  background: var(--blue-100);
+  border-color: var(--blue-300);
+}
+
+.card-actions .btn-error {
+  background: var(--red-50);
+  border-color: var(--red-200);
+  color: var(--red-700);
+}
+
+.card-actions .btn-error:hover {
+  background: var(--red-100);
+  border-color: var(--red-300);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-group,
+  .filter-group--provider {
+    min-width: auto;
+    width: 100%;
+  }
+}

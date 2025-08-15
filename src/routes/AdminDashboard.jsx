@@ -64,11 +64,17 @@ const AdminDashboard = () => {
         onStorage({ key: 'admin_mt_toilets' })
       }
     }
+    const onAssignmentsUpdated = () => {
+      // Refresh data when provider assignments are updated
+      onStorage({ key: 'admin_mt_toilets' })
+    }
     window.addEventListener('storage', onStorage)
     window.addEventListener('toilets:updated', onCustom)
+    window.addEventListener('assignments:updated', onAssignmentsUpdated)
     return () => {
       window.removeEventListener('storage', onStorage)
       window.removeEventListener('toilets:updated', onCustom)
+      window.removeEventListener('assignments:updated', onAssignmentsUpdated)
     }
   }, [searchTerm, filteredResults.toilets])
 
@@ -281,6 +287,7 @@ const AdminDashboard = () => {
                 toilet={toilet} 
                 onClick={() => navigate(`/admin/toilet/${toilet.id}`)}
                 showProvider={true}
+                providers={providers}
               />
             ))}
           </div>

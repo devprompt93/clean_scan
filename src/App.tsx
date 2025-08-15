@@ -74,7 +74,12 @@ class ErrorBoundary extends React.Component<
 
 const App = () => (
   <ErrorBoundary>
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
